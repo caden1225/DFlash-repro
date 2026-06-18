@@ -1,0 +1,20 @@
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: ======================================================================
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: DFlash Training
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: ======================================================================
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Config file : configs/qwen3_4b_l20x8.yaml
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Rank / world: 0 / 1
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Output dir  : ./checkpoints/dflash_qwen3_4b_l20x8
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Target model: /storage/caden/models/Qwen3_5-0_8B
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Draft layers: 5
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Block size  : 16
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Epochs      : 5
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Batch size  : 6
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Learning rate: 6.00e-04
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: ======================================================================
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash.train: Loading target model configuration ...
+2026-06-18 13:52:37 [Rank 0] [INFO] dflash: Loading target model from /storage/caden/models/Qwen3_5-0_8B
+2026-06-18 13:52:39 [Rank 0] [INFO] dflash: Loaded target model: 752,393,024 params (752,393,024 trainable)
+2026-06-18 13:52:39 [Rank 0] [INFO] dflash.train: Auto-computed target_layer_ids: [1, 6, 11, 16, 21]
+2026-06-18 13:52:39 [Rank 0] [INFO] dflash.train: Building DFlash draft model ...
+2026-06-18 13:52:39 [Rank 0] [INFO] dflash.train: Draft model parameters: total=103,297,024, trainable=103,297,024
+2026-06-18 13:52:39 [Rank 0] [INFO] dflash.train: Building training data loader ...

@@ -1,0 +1,102 @@
+# ============================================================================
+# DFlash Configuration for Qwen3-4B on 8x NVIDIA L20 (48GB)
+# ============================================================================
+# 基于 configs/qwen3_4b.yaml，针对 8 张 L20 显存与算力重写。
+#
+# GPU 分配（推荐）:
+#   GPU 0-1 : vLLM 隐藏状态提取服务 (data_parallel_size=2)
+#   GPU 2-7 : 草稿模型分布式训练 (nproc_per_node=6, FSDP)
+#
+# 启动 vLLM（Terminal 1）:
+#   CUDA_VISIBLE_DEVICES=0,1 python -m vllm.entrypoints.openai.api_server \
+#     --model Qwen/Qwen3-4B \
+#     --tensor-parallel-size 1 \
+#     --data-parallel-size 2 \
+#     --port 8000 \
+#     --gpu-memory-utilization 0.85 \
+#     --enable-hidden-states \
+#     --hidden-states-layer-ids 1 6 11 17 22
+#
+# 启动训练（Terminal 2）:
+#   CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 torchrun --standalone --nproc_per_node=6 \
+#     train.py --config configs/qwen3_4b_l20x8.yaml
+#
+# 单卡调试（无 vLLM 时）:
+#   python train.py --config configs/qwen3_4b_l20x8.yaml --dry-run
+# ============================================================================
+
+model:
+  target_model: "/storage/caden/models/Qwen3_5-0_8B"
+  target_model_type: "qwen3"
+  draft_num_layers: 5
+  draft_vocab_size: 8192
+  block_size: 16
+  target_layer_ids: null              # 自动计算: [1, 6, 11, 17, 22]
+  max_seq_len: 3072
+  dtype: "bfloat16"
+
+data:
+  dataset_name: "lmsys/sharegpt_jsonl"
+  dataset_type: "huggingface"
+  text_field: "conversations"
+  regenerate_responses: true
+  regen_temperature: 0.6
+  regen_max_tokens: 2048
+  train_split: "train"
+  max_samples: 80000                  # 8 卡算力充裕，可用更多样本
+
+training:
+  epochs: 5
+  batch_size: 6                       # L20 48GB，per-GPU batch；6 GPU 有效 batch=36
+  learning_rate: 0.0006
+  weight_decay: 0.01
+  gradient_clipping: 1.0
+  warmup_ratio: 0.04
+  scheduler: "cosine"
+  num_anchors: 512
+  loss_decay_gamma: 7.0               # block_size=16 -> gamma=7
+  max_anchors_training: 3072
+  online_training: true
+  optimizer: "adamw"
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1.0e-8
+  seed: 42
+
+hidden_states:
+  extraction_mode: "online"
+  vllm_endpoint: "http://localhost:8000/v1"
+  vllm_port: 8000
+  tensor_parallel_size: 1
+  data_parallel_size: 2               # 占用 GPU 0-1
+  gpu_memory_utilization: 0.85        # L20 48GB，略低于 H100 配置以防 OOM
+  cache_dir: "./cache/hidden_states_qwen3_4b_l20x8"
+  num_proc: 8
+
+inference:
+  temperature: 0.0
+  max_new_tokens: 2048
+  num_speculative_tokens: 15
+  device: "cuda"
+
+evaluation:
+  datasets:
+    - "gsm8k"
+    - "math500"
+    - "humaneval"
+  num_samples: 128
+  concurrency: 2                      # 8 卡环境可适当提高评估并发
+  output_dir: "./eval_results"
+
+output:
+  checkpoint_dir: "./checkpoints/dflash_qwen3_4b_l20x8"
+  save_every: 1
+  logging_dir: "./logs"
+  log_every: 10
+
+distributed:
+  backend: "nccl"
+  world_size: null
+  rank: null
+  local_rank: null
+  use_fsdp: true                      # 6 GPU 训练，启用 FSDP

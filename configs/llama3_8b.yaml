@@ -1,0 +1,92 @@
+# ============================================================================
+# DFlash Configuration for Llama-3.1-8B-Instruct
+# ============================================================================
+# This config trains a DFlash draft model for Llama-3.1-8B-Instruct.
+# Hardware requirement: 4x H100 GPUs (2 for vLLM, 2 for training)
+#
+# Note: Llama models use a smaller block_size (10) compared to Qwen3 (16).
+# The loss_decay_gamma is adjusted accordingly.
+#
+# Usage:
+#   python train.py --config configs/llama3_8b.yaml
+# ============================================================================
+
+model:
+  target_model: "meta-llama/Meta-Llama-3.1-8B-Instruct"
+  target_model_type: "llama"
+  draft_num_layers: 5
+  draft_vocab_size: 8192
+  block_size: 10                      # Llama uses block_size=10
+  target_layer_ids: null              # Auto-compute for 32-layer Llama
+  max_seq_len: 3072
+  dtype: "bfloat16"
+
+data:
+  dataset_name: "nvidia/Nemotron-Post-Training-Dataset-v2"
+  dataset_type: "huggingface"
+  text_field: "conversations"
+  regenerate_responses: true
+  regen_temperature: 0.6
+  regen_max_tokens: 2048
+  train_split: "train"
+  max_samples: null
+
+training:
+  epochs: 6
+  batch_size: 4
+  learning_rate: 0.0006
+  weight_decay: 0.01
+  gradient_clipping: 1.0
+  warmup_ratio: 0.04
+  scheduler: "cosine"
+  num_anchors: 512
+  loss_decay_gamma: 5.0              # block_size=10 -> gamma=5
+  max_anchors_training: 3072
+  online_training: true
+  optimizer: "adamw"
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1.0e-8
+  seed: 42
+
+hidden_states:
+  extraction_mode: "online"
+  vllm_endpoint: "http://localhost:8000/v1"
+  vllm_port: 8000
+  tensor_parallel_size: 1
+  data_parallel_size: 2
+  gpu_memory_utilization: 0.9
+  cache_dir: "./cache/hidden_states_llama3_8b"
+  num_proc: 8
+
+inference:
+  temperature: 0.0
+  max_new_tokens: 2048
+  num_speculative_tokens: 15
+  device: "cuda"
+
+evaluation:
+  datasets:
+    - "gsm8k"
+    - "math500"
+    - "aime25"
+    - "humaneval"
+    - "mbpp"
+    - "livecodebench"
+    - "mt_bench"
+  num_samples: null
+  concurrency: 1
+  output_dir: "./eval_results"
+
+output:
+  checkpoint_dir: "./checkpoints/dflash_llama3_8b"
+  save_every: 1
+  logging_dir: "./logs"
+  log_every: 10
+
+distributed:
+  backend: "nccl"
+  world_size: null
+  rank: null
+  local_rank: null
+  use_fsdp: true

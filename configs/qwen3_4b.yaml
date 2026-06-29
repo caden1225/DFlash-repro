@@ -1,0 +1,89 @@
+# ============================================================================
+# DFlash Configuration for Qwen3-4B
+# ============================================================================
+# Smaller model config suitable for limited GPU resources.
+# Hardware requirement: 2x H100 GPUs (1 for vLLM, 1 for training)
+#
+# Usage:
+#   python train.py --config configs/qwen3_4b.yaml
+# ============================================================================
+
+model:
+  target_model: "Qwen/Qwen3-4B"
+  target_model_type: "qwen3"
+  draft_num_layers: 5
+  draft_vocab_size: 8192
+  block_size: 16
+  target_layer_ids: null
+  max_seq_len: 3072
+  dtype: "bfloat16"
+
+data:
+  dataset_name: "nvidia/Nemotron-Post-Training-Dataset-v2"
+  dataset_type: "huggingface"
+  text_field: "conversations"
+  regenerate_responses: true
+  regen_temperature: 0.6
+  regen_max_tokens: 2048
+  train_split: "train"
+  max_samples: 50000                 # Use fewer samples for faster training
+
+training:
+  epochs: 5
+  batch_size: 8                      # Larger batch size with smaller model
+  learning_rate: 0.0006
+  weight_decay: 0.01
+  gradient_clipping: 1.0
+  warmup_ratio: 0.04
+  scheduler: "cosine"
+  num_anchors: 512
+  loss_decay_gamma: 7.0
+  max_anchors_training: 3072
+  online_training: true
+  optimizer: "adamw"
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1.0e-8
+  seed: 42
+
+hidden_states:
+  extraction_mode: "online"
+  vllm_endpoint: "http://localhost:8000/v1"
+  vllm_port: 8000
+  tensor_parallel_size: 1
+  data_parallel_size: 1
+  gpu_memory_utilization: 0.9
+  cache_dir: "./cache/hidden_states_qwen3_4b"
+  num_proc: 4
+
+inference:
+  temperature: 0.0
+  max_new_tokens: 2048
+  num_speculative_tokens: 15
+  device: "cuda"
+
+evaluation:
+  datasets:
+    - "gsm8k"
+    - "math500"
+    - "aime25"
+    - "humaneval"
+    - "mbpp"
+    - "livecodebench"
+    - "mt_bench"
+  num_samples: null
+  concurrency: 1
+  output_dir: "./eval_results"
+
+output:
+  checkpoint_dir: "./checkpoints/dflash_qwen3_4b"
+  save_every: 1
+  logging_dir: "./logs"
+  log_every: 10
+
+distributed:
+  backend: "nccl"
+  world_size: null
+  rank: null
+  local_rank: null
+  use_fsdp: false                    # Single GPU, no need for FSDP

@@ -1,0 +1,98 @@
+# ============================================================================
+# DFlash MacBook Configuration (48GB Unified Memory)
+# ============================================================================
+# Optimized for Apple Silicon MacBook with 48GB unified memory.
+# Uses MLX framework for efficient inference and PyTorch MPS for training.
+#
+# Target Model: Qwen3-4B (~4GB with 4-bit quantization via MLX)
+# Draft Model: ~200MB
+# System Reserve: ~4GB
+# Available for Training: ~40GB
+#
+# Usage:
+#   # Inference (MLX)
+#   python -m dflash_reproduce.mac_benchmark --config configs/mac_qwen3_4b.yaml
+#
+#   # Training (PyTorch MPS)
+#   python dflash_reproduce/mac_train.py --config configs/mac_qwen3_4b.yaml
+# ============================================================================
+
+model:
+  target_model: "Qwen/Qwen3-4B"
+  target_model_type: "qwen3"
+  draft_num_layers: 5
+  draft_vocab_size: 8192
+  block_size: 16
+  target_layer_ids: null
+  max_seq_len: 2048        # Reduced for Mac memory constraints
+  dtype: "bfloat16"
+  quantization: "4bit"     # MLX 4-bit quantization for target model
+
+data:
+  dataset_name: "nvidia/Nemotron-Post-Training-Dataset-v2"
+  dataset_type: "huggingface"
+  text_field: "conversations"
+  regenerate_responses: true
+  regen_temperature: 0.6
+  regen_max_tokens: 1024   # Shorter responses for Mac
+  train_split: "train"
+  max_samples: 5000        # Small subset for Mac training
+
+training:
+  epochs: 6
+  batch_size: 1            # Single sample per batch on Mac
+  gradient_accumulation: 8 # Effective batch size = 8
+  learning_rate: 0.0006
+  weight_decay: 0.01
+  gradient_clipping: 1.0
+  warmup_ratio: 0.04
+  scheduler: "cosine"
+  num_anchors: 512
+  loss_decay_gamma: 7.0
+  max_anchors_training: 1024
+  online_training: false   # Offline mode: pre-extract hidden states
+  optimizer: "adamw"
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1.0e-8
+  seed: 42
+
+hidden_states:
+  extraction_mode: "offline"
+  vllm_endpoint: null      # Not using vLLM on Mac
+  cache_dir: "./cache/mac_hidden_states_qwen3_4b"
+  num_proc: 4              # Fewer processes on Mac
+  batch_size: 2            # Batch size for hidden state extraction
+  max_samples: 5000
+
+inference:
+  temperature: 0.0
+  max_new_tokens: 1024
+  num_speculative_tokens: 15
+  device: "mps"            # Apple Metal Performance Shaders
+  use_mlx: true            # Use MLX framework for inference
+
+evaluation:
+  datasets:
+    - "gsm8k"
+    - "math500"
+    - "aime25"
+    - "humaneval"
+    - "mbpp"
+    - "livecodebench"
+    - "mt_bench"
+  num_samples: null
+  concurrency: 1
+  output_dir: "./mac_eval_results"
+  compare_official: true
+  official_draft_model: "z-lab/Qwen3-4B-DFlash-b16"
+
+output:
+  checkpoint_dir: "./mac_checkpoints/dflash_qwen3_4b"
+  save_every: 1
+  logging_dir: "./mac_logs"
+  log_every: 10
+
+distributed:
+  use_fsdp: false          # No FSDP on single Mac
+  backend: null
